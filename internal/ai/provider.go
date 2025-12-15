@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
 )
 
 // Provider AI提供商类型

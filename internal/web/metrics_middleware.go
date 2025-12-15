@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourusername/nofx-go/internal/metrics"
+	"github.com/yuechangmingzou/nofx-go/internal/metrics"
 )
 
 // metricsMiddleware 指标收集中间件

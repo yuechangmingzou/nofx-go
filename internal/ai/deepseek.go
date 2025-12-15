@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
 )
 
 // DeepSeekProvider DeepSeek AI提供商实现
@@ -101,15 +101,39 @@ func (p *DeepSeekProvider) ChatCompletion(ctx context.Context, req ChatRequest) 
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		// 尝试解析错误响应
+		var errorResp struct {
+			Error struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+				Code    string `json:"code"`
+			} `json:"error"`
+		}
+		errorMsg := fmt.Sprintf("API错误: HTTP %d", resp.StatusCode)
+		if err := json.Unmarshal(body, &errorResp); err == nil && errorResp.Error.Message != "" {
+			errorMsg = fmt.Sprintf("API错误: %s (type: %s, code: %s)", errorResp.Error.Message, errorResp.Error.Type, errorResp.Error.Code)
+		}
+		
 		logger.Warnw("DeepSeek API返回错误",
 			"status", resp.StatusCode,
+			"error", errorMsg,
 			"body", string(body),
 		)
+		
+		// 如果是速率限制，返回特殊错误
+		if resp.StatusCode == http.StatusTooManyRequests {
+			return &ChatResponse{
+				Content:   "",
+				LatencyMs: latencyMs,
+				Error:     "速率限制: 请求过于频繁，请稍后重试",
+			}, fmt.Errorf("速率限制: %s", errorMsg)
+		}
+		
 		return &ChatResponse{
 			Content:   "",
 			LatencyMs: latencyMs,
-			Error:     fmt.Sprintf("API错误: HTTP %d", resp.StatusCode),
-		}, fmt.Errorf("API错误: HTTP %d", resp.StatusCode)
+			Error:     errorMsg,
+		}, fmt.Errorf("%s", errorMsg)
 	}
 
 	// 解析响应

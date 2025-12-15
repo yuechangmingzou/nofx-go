@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/utils"
-	"github.com/yourusername/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 )
 
 // ScanMarketStream 流式扫描市场

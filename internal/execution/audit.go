@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
 )
 
 // saveAudit 保存审计日志

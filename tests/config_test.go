@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/yourusername/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
 )
 
 func TestConfigLoad(t *testing.T) {

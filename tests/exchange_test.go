@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/yourusername/nofx-go/internal/exchange"
+	"github.com/yuechangmingzou/nofx-go/internal/exchange"
 )
 
 func TestRateLimiter(t *testing.T) {

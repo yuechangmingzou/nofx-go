@@ -2,6 +2,7 @@
 
 # 构建
 build:
+	@mkdir -p bin
 	go build -o bin/nofx-go cmd/main.go
 
 # 运行
@@ -37,4 +38,8 @@ lint:
 
 # 运行所有检查
 check: fmt lint test
+
+# 加密工具
+encrypt:
+	go run ./cmd/encrypt
 

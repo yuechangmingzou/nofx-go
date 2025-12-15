@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
 )
 
 // GeminiProvider Google Gemini提供商实现
@@ -52,8 +52,9 @@ func (p *GeminiProvider) ChatCompletion(ctx context.Context, req ChatRequest) (*
 		model = req.Model
 	}
 
-	apiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s",
-		model, p.cfg.GeminiAPIKey)
+	// 使用Header传递API Key，而不是URL参数（更安全）
+	apiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent",
+		model)
 
 	// 转换消息格式
 	var contents []map[string]interface{}
@@ -82,6 +83,8 @@ func (p *GeminiProvider) ChatCompletion(ctx context.Context, req ChatRequest) (*
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	// 使用Header传递API Key（更安全，不会出现在URL中）
+	httpReq.Header.Set("x-goog-api-key", p.cfg.GeminiAPIKey)
 
 	startTime := time.Now()
 
@@ -108,15 +111,39 @@ func (p *GeminiProvider) ChatCompletion(ctx context.Context, req ChatRequest) (*
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		// 尝试解析错误响应
+		var errorResp struct {
+			Error struct {
+				Message string `json:"message"`
+				Status  string `json:"status"`
+				Code    int    `json:"code"`
+			} `json:"error"`
+		}
+		errorMsg := fmt.Sprintf("API错误: HTTP %d", resp.StatusCode)
+		if err := json.Unmarshal(body, &errorResp); err == nil && errorResp.Error.Message != "" {
+			errorMsg = fmt.Sprintf("API错误: %s (status: %s, code: %d)", errorResp.Error.Message, errorResp.Error.Status, errorResp.Error.Code)
+		}
+		
 		logger.Warnw("Gemini API返回错误",
 			"status", resp.StatusCode,
+			"error", errorMsg,
 			"body", string(body),
 		)
+		
+		// 如果是速率限制，返回特殊错误
+		if resp.StatusCode == http.StatusTooManyRequests {
+			return &ChatResponse{
+				Content:   "",
+				LatencyMs: latencyMs,
+				Error:     "速率限制: 请求过于频繁，请稍后重试",
+			}, fmt.Errorf("速率限制: %s", errorMsg)
+		}
+		
 		return &ChatResponse{
 			Content:   "",
 			LatencyMs: latencyMs,
-			Error:     fmt.Sprintf("API错误: HTTP %d", resp.StatusCode),
-		}, fmt.Errorf("API错误: HTTP %d", resp.StatusCode)
+			Error:     errorMsg,
+		}, fmt.Errorf("%s", errorMsg)
 	}
 
 	var apiResp struct {

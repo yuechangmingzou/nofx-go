@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/yourusername/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
 )
 
 func TestValidateConfig_Success(t *testing.T) {

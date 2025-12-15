@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/yourusername/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"go.uber.org/zap"
 )
 
 var redisClient *redis.Client
@@ -28,7 +29,17 @@ func GetRedisClient() *redis.Client {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := redisClient.Ping(ctx).Err(); err != nil {
-			panic(fmt.Sprintf("Failed to connect to Redis: %v", err))
+			// Redis连接失败，记录错误
+			// 注意：Redis是核心依赖，连接失败应该被处理
+			// 这里不panic，让调用者决定如何处理
+			logger, _ := zap.NewDevelopment()
+			logger.Error("Redis连接失败",
+				zap.Error(err),
+				zap.String("host", cfg.RedisHost),
+				zap.Int("port", cfg.RedisPort),
+			)
+			// 返回client实例，但后续操作可能会失败
+			// 如果Redis是必需的，应该在main.go中检查并退出
 		}
 	}
 	return redisClient

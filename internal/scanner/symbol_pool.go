@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/exchange"
-	"github.com/yourusername/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/exchange"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
 )
 
 // GetSymbolPool 获取币种池

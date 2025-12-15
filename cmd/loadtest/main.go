@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/yourusername/nofx-go/tests"
+	"github.com/yuechangmingzou/nofx-go/tests"
 )
 
 func main() {

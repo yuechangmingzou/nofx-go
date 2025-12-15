@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
 )
 
 // Config 配置结构体
@@ -223,6 +224,7 @@ type Config struct {
 	WebChartJSSrc         string
 	WebChartJSIntegrity   string
 	WebChartJSCrossOrigin string
+	WebAllowedOrigins     []string
 
 	// Runtime Config
 	RuntimeConfigCacheTTLSec  float64
@@ -245,8 +247,8 @@ func Load() error {
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
 		RedisDB:       getIntEnv("REDIS_DB", 0),
 
-		BinanceAPIKey:    getEnv("BINANCE_API_KEY", ""),
-		BinanceSecretKey: getEnv("BINANCE_SECRET_KEY", ""),
+		BinanceAPIKey:    utils.DecryptEnv("BINANCE_API_KEY"),
+		BinanceSecretKey: utils.DecryptEnv("BINANCE_SECRET_KEY"),
 		BinanceTestnet:   getBoolEnv("BINANCE_TESTNET", false),
 
 		DryRun: getBoolEnv("DRY_RUN", true),
@@ -254,21 +256,21 @@ func Load() error {
 		AIProvider: strings.ToLower(getEnv("AI_PROVIDER", "deepseek")),
 
 		DeepSeekEnabled:     getBoolEnv("DEEPSEEK_ENABLED", false),
-		DeepSeekAPIKey:      getEnv("DEEPSEEK_API_KEY", ""),
+		DeepSeekAPIKey:      utils.DecryptEnv("DEEPSEEK_API_KEY"),
 		DeepSeekBaseURL:     getEnv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
 		DeepSeekModel:       getEnv("DEEPSEEK_MODEL", "deepseek-chat"),
 		DeepSeekTemperature: getFloatEnv("DEEPSEEK_TEMPERATURE", 0.3),
 		DeepSeekMaxTokens:   getIntEnv("DEEPSEEK_MAX_TOKENS", 4000),
 
 		OpenAIEnabled:     getBoolEnv("OPENAI_ENABLED", false),
-		OpenAIAPIKey:      getEnv("OPENAI_API_KEY", ""),
+		OpenAIAPIKey:      utils.DecryptEnv("OPENAI_API_KEY"),
 		OpenAIBaseURL:     getEnv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
 		OpenAIModel:       getEnv("OPENAI_MODEL", "gpt-4o-mini"),
 		OpenAITemperature: getFloatEnv("OPENAI_TEMPERATURE", 0.3),
 		OpenAIMaxTokens:   getIntEnv("OPENAI_MAX_TOKENS", 4000),
 
 		GeminiEnabled:     getBoolEnv("GEMINI_ENABLED", false),
-		GeminiAPIKey:      getEnv("GEMINI_API_KEY", ""),
+		GeminiAPIKey:      utils.DecryptEnv("GEMINI_API_KEY"),
 		GeminiModel:       getEnv("GEMINI_MODEL", "gemini-pro"),
 		GeminiTemperature: getFloatEnv("GEMINI_TEMPERATURE", 0.3),
 		GeminiMaxTokens:   getIntEnv("GEMINI_MAX_TOKENS", 4000),
@@ -420,6 +422,7 @@ func Load() error {
 		WebChartJSSrc:         getEnv("WEB_CHARTJS_SRC", "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
 		WebChartJSIntegrity:   getEnv("WEB_CHARTJS_INTEGRITY", ""),
 		WebChartJSCrossOrigin: getEnv("WEB_CHARTJS_CROSSORIGIN", "anonymous"),
+		WebAllowedOrigins:     parseStringList(getEnv("WEB_ALLOWED_ORIGINS", "")),
 
 		RuntimeConfigCacheTTLSec:  getFloatEnv("RUNTIME_CONFIG_CACHE_TTL_SEC", 3.0),
 		RuntimeConfigWriteEnabled: getBoolEnv("RUNTIME_CONFIG_WRITE_ENABLED", true),

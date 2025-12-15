@@ -1,17 +1,20 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/exchange"
-	"github.com/yourusername/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/exchange"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 	"go.uber.org/zap"
 )
 
@@ -20,7 +23,7 @@ type Server struct {
 	engine   *gin.Engine
 	config   *config.Config
 	logger   *zap.SugaredLogger
-	exchange *exchange.BinanceExchange
+	exchange types.Exchange
 	redis    utils.RedisClient
 }
 
@@ -247,5 +250,11 @@ func (s *Server) handleIndex(c *gin.Context) {
 		return
 	}
 
-	c.Data(http.StatusOK, "text/html; charset=utf-8", data)
+	// 替换模板变量
+	content := string(data)
+	content = strings.ReplaceAll(content, "{{.ChartJSSrc}}", s.config.WebChartJSSrc)
+	content = strings.ReplaceAll(content, "{{.ChartJSIntegrity}}", s.config.WebChartJSIntegrity)
+	content = strings.ReplaceAll(content, "{{.ChartJSCrossOrigin}}", s.config.WebChartJSCrossOrigin)
+
+	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(content))
 }

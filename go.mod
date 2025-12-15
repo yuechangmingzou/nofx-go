@@ -1,4 +1,4 @@
-module github.com/yourusername/nofx-go
+module github.com/yuechangmingzou/nofx-go
 
 go 1.23.0
 
@@ -11,6 +11,9 @@ require (
 
 	// 日志
 	go.uber.org/zap v1.26.0
+
+	// 终端输入
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 )
 
 require (

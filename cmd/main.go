@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/yourusername/nofx-go/internal/bot"
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/metrics"
-	"github.com/yourusername/nofx-go/internal/scanner"
-	"github.com/yourusername/nofx-go/internal/utils"
-	"github.com/yourusername/nofx-go/internal/web"
-	"github.com/yourusername/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/internal/bot"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/metrics"
+	"github.com/yuechangmingzou/nofx-go/internal/scanner"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/internal/web"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 	"go.uber.org/zap"
 )
 
@@ -44,7 +44,17 @@ func main() {
 	logger := utils.GetLogger("main")
 
 	// 初始化Redis
-	_ = utils.GetRedisClient()
+	redisClient := utils.GetRedisClient()
+	if redisClient == nil {
+		logger.Fatal("Redis连接失败，程序无法继续运行")
+	}
+	// 验证Redis连接
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		cancel()
+		logger.Fatalw("Redis连接验证失败", "error", err)
+	}
+	cancel()
 	defer utils.CloseRedisClient()
 
 	logger.Infow("🚀 NOFX Go版本启动",
@@ -85,17 +95,8 @@ func main() {
 		runBot(ctx, logger)
 	}()
 
-	// TODO: 启动指标采集器
-	// wg.Add(1)
-	// go func() {
-	// 	defer wg.Done()
-	// 	defer func() {
-	// 		if r := recover(); r != nil {
-	// 			logger.Errorw("指标采集器panic", "error", r)
-	// 		}
-	// 	}()
-	// 	runMetricsCollector(ctx, logger)
-	// }()
+	// 注意：指标收集器已通过 metrics.StartCollector 启动（见下方）
+	// 这里不需要额外的指标采集器
 
 	// 启动Web服务
 	wg.Add(1)

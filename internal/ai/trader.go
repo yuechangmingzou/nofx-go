@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/metrics"
-	"github.com/yourusername/nofx-go/internal/utils"
-	"github.com/yourusername/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/metrics"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 )
 
 // TradingDecision 交易决策结果
@@ -264,24 +264,14 @@ func (t *AITrader) MakeTradingDecision(ctx context.Context, marketData *types.Ma
 
 // parseAIResponse 解析AI响应
 func (t *AITrader) parseAIResponse(content, symbol string) (*TradingDecision, error) {
-	// 尝试提取JSON（可能被```json包裹）
-	jsonContent := content
-	if strings.Contains(content, "```json") {
-		start := strings.Index(content, "```json") + 7
-		end := strings.Index(content[start:], "```")
-		if end > 0 {
-			jsonContent = strings.TrimSpace(content[start : start+end])
-		}
-	} else if strings.Contains(content, "```") {
-		start := strings.Index(content, "```") + 3
-		end := strings.Index(content[start:], "```")
-		if end > 0 {
-			jsonContent = strings.TrimSpace(content[start : start+end])
-		}
+	// 使用工具函数提取JSON
+	jsonContent, err := utils.ExtractJSONFromMarkdown(content)
+	if err != nil {
+		jsonContent = content // 如果提取失败，使用原始内容
 	}
 
 	var decisionData map[string]interface{}
-	if err := json.Unmarshal([]byte(jsonContent), &decisionData); err != nil {
+	if err := utils.SafeUnmarshal(jsonContent, &decisionData); err != nil {
 		return nil, fmt.Errorf("解析JSON失败: %w", err)
 	}
 
@@ -305,7 +295,7 @@ func (t *AITrader) parseAIResponse(content, symbol string) (*TradingDecision, er
 
 	decision := &TradingDecision{
 		Action:       action,
-		Reason:       getString(decisionData, "reason", ""),
+		Reason:       utils.GetString(decisionData, "reason", ""),
 		FullDecision: decisionData,
 	}
 
@@ -322,9 +312,10 @@ func (t *AITrader) parseAIResponse(content, symbol string) (*TradingDecision, er
 			if action == "open_short" {
 				signal.Side = "short"
 			}
-			signal.EntryPrice = getFloat(decisionData, "entry_price", 0)
-			signal.StopLoss = getFloat(decisionData, "stop_loss", 0)
-			signal.TakeProfit = getFloat(decisionData, "take_profit_1", 0)
+			signal.EntryPrice = utils.GetFloat(decisionData, "entry_price", 0)
+			signal.StopLoss = utils.GetFloat(decisionData, "stop_loss", 0)
+			signal.TakeProfit = utils.GetFloat(decisionData, "take_profit_1", 0)
+			signal.TakeProfit2 = utils.GetFloat(decisionData, "take_profit_2", 0)
 		}
 
 		decision.Signal = signal
@@ -393,19 +384,7 @@ func containsAny(s string, keywords []string) bool {
 	return false
 }
 
-func getString(m map[string]interface{}, key string, defaultValue string) string {
-	if v, ok := m[key].(string); ok {
-		return v
-	}
-	return defaultValue
-}
-
-func getFloat(m map[string]interface{}, key string, defaultValue float64) float64 {
-	if v, ok := m[key].(float64); ok {
-		return v
-	}
-	return defaultValue
-}
+// getString和getFloat已迁移到utils包，使用utils.GetString和utils.GetFloat
 
 func limitDictSize(data map[string]interface{}, maxFieldChars, maxTotalBytes int) map[string]interface{} {
 	// 简化实现：只限制字符串字段长度

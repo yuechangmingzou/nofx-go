@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/pkg/types"
-	"github.com/yourusername/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
 )
 
 // PlaceOrder 下单
@@ -142,6 +142,7 @@ func (be *BinanceExchange) PlaceOrder(req types.OrderRequest) (*types.Order, err
 		Quantity:     req.Quantity,
 		FilledQty:    filledQty,
 		AvgPrice:     avgPrice,
+		ReduceOnly:   req.ReduceOnly,
 		Timestamp:    time.Now().Unix(),
 	}
 
@@ -221,6 +222,7 @@ func (be *BinanceExchange) GetOpenOrders(symbol string) ([]*types.Order, error) 
 		avgPrice, _ := parseFloatValue(o["avgPrice"])
 		timeVal, _ := parseFloatValue(o["time"])
 
+		reduceOnly, _ := parseBoolValue(o["reduceOnly"])
 		orders = append(orders, &types.Order{
 			ID:           orderID,
 			Symbol:       symbol,
@@ -233,6 +235,7 @@ func (be *BinanceExchange) GetOpenOrders(symbol string) ([]*types.Order, error) 
 			StopPrice:    stopPrice,
 			FilledQty:    filledQty,
 			AvgPrice:     avgPrice,
+			ReduceOnly:   reduceOnly,
 			Timestamp:    int64(timeVal / 1000),
 		})
 	}
@@ -241,7 +244,7 @@ func (be *BinanceExchange) GetOpenOrders(symbol string) ([]*types.Order, error) 
 }
 
 // CancelOrder 取消订单
-func (be *BinanceExchange) CancelOrder(orderID, symbol string) (bool, error) {
+func (be *BinanceExchange) CancelOrder(symbol, orderID string) error {
 	cfg := config.Get()
 	if cfg.DryRun {
 		logger := utils.GetLogger("exchange")
@@ -249,11 +252,11 @@ func (be *BinanceExchange) CancelOrder(orderID, symbol string) (bool, error) {
 			"order_id", orderID,
 			"symbol", symbol,
 		)
-		return true, nil
+		return nil
 	}
 
 	if cfg.BinanceAPIKey == "" || cfg.BinanceSecretKey == "" {
-		return false, fmt.Errorf("API keys required")
+		return fmt.Errorf("API keys required")
 	}
 
 	symbol = be.normalizeSymbol(symbol)
@@ -264,7 +267,7 @@ func (be *BinanceExchange) CancelOrder(orderID, symbol string) (bool, error) {
 
 	reqURL, err := be.buildSignedURL("/fapi/v1/order", params, http.MethodDelete)
 	if err != nil {
-		return false, fmt.Errorf("build signed URL failed: %w", err)
+		return fmt.Errorf("build signed URL failed: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -272,31 +275,31 @@ func (be *BinanceExchange) CancelOrder(orderID, symbol string) (bool, error) {
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, reqURL, nil)
 	if err != nil {
-		return false, fmt.Errorf("create request failed: %w", err)
+		return fmt.Errorf("create request failed: %w", err)
 	}
 
 	httpReq.Header.Set("X-MBX-APIKEY", cfg.BinanceAPIKey)
 
 	resp, err := be.client.client.Do(httpReq)
 	if err != nil {
-		return false, fmt.Errorf("request failed: %w", err)
+		return fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return false, fmt.Errorf("read response failed: %w", err)
+		return fmt.Errorf("read response failed: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("cancel order failed: HTTP %d, body: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("cancel order failed: HTTP %d, body: %s", resp.StatusCode, string(body))
 	}
 
-	return true, nil
+	return nil
 }
 
 // GetOrder 获取订单状态
-func (be *BinanceExchange) GetOrder(orderID, symbol string) (*types.Order, error) {
+func (be *BinanceExchange) GetOrder(symbol, orderID string) (*types.Order, error) {
 	cfg := config.Get()
 	if cfg.DryRun {
 		return &types.Order{
@@ -363,6 +366,7 @@ func (be *BinanceExchange) GetOrder(orderID, symbol string) (*types.Order, error
 	filledQty, _ := parseFloatValue(orderResp["executedQty"])
 	avgPrice, _ := parseFloatValue(orderResp["avgPrice"])
 	timeVal, _ := parseFloatValue(orderResp["time"])
+	reduceOnly, _ := parseBoolValue(orderResp["reduceOnly"])
 
 	return &types.Order{
 		ID:           orderIDStr,
@@ -376,6 +380,7 @@ func (be *BinanceExchange) GetOrder(orderID, symbol string) (*types.Order, error
 		StopPrice:    stopPrice,
 		FilledQty:    filledQty,
 		AvgPrice:     avgPrice,
+		ReduceOnly:   reduceOnly,
 		Timestamp:    int64(timeVal / 1000),
 	}, nil
 }
@@ -463,7 +468,10 @@ func (be *BinanceExchange) GetPositions() ([]*types.Position, error) {
 			size = -size
 		}
 
-		symbol, _ := p["symbol"].(string)
+		symbol, ok := p["symbol"].(string)
+		if !ok || symbol == "" {
+			continue // 跳过无效的symbol
+		}
 		positions = append(positions, &types.Position{
 			Symbol:       symbol,
 			Side:         side,

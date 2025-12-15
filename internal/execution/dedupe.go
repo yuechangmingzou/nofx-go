@@ -5,20 +5,23 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 )
 
 // checkAndSetDedupe 检查并设置去重标记
 func (e *ExecutionEngine) checkAndSetDedupe(ctx context.Context, symbol string, signal *types.Signal, windowSec int) bool {
 	cfg := config.Get()
 
-	// 构建去重键（包含symbol、side、price、signal_id）
-	dedupeKey := fmt.Sprintf("dedupe:%s:%s:%s:%.8f",
+	// 构建去重键（包含symbol、side、price、action和时间窗口）
+	// 使用时间窗口确保相同价格但不同时间的信号不会被误去重
+	timeWindow := time.Now().Unix() / int64(windowSec) // 时间窗口
+	dedupeKey := fmt.Sprintf("dedupe:%s:%s:%s:%.8f:%d",
 		symbol,
 		signal.Action,
 		signal.Side,
 		signal.EntryPrice,
+		timeWindow,
 	)
 
 	// 检查是否已存在

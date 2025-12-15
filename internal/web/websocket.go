@@ -10,18 +10,36 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/metrics"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/metrics"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 )
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		// 生产环境应该检查Origin
+		cfg := config.Get()
 		origin := r.Header.Get("Origin")
+		
+		// 允许无Origin的请求（可能是非浏览器客户端）
 		if origin == "" {
-			return true // 允许无Origin的请求（可能是非浏览器客户端）
+			return true
 		}
-		// TODO: 在生产环境中验证Origin白名单
+		
+		// 如果配置了允许的Origin列表，进行验证
+		allowedOrigins := cfg.WebAllowedOrigins
+		if len(allowedOrigins) > 0 {
+			for _, allowed := range allowedOrigins {
+				if origin == allowed {
+					return true
+				}
+			}
+			// 如果配置了白名单但不在列表中，拒绝
+			return false
+		}
+		
+		// 如果没有配置白名单，在非生产环境允许所有Origin
+		// 生产环境建议配置WEB_ALLOWED_ORIGINS环境变量
 		return true
 	},
 	ReadBufferSize:  1024,
@@ -55,7 +73,7 @@ func (s *Server) handleWebSocket(c *gin.Context) {
 	}
 
 	// 验证token
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	key := config.GetRedisKey(fmt.Sprintf("ws_token:%s", wsToken))
@@ -124,30 +142,143 @@ func (s *Server) handleWebSocket(c *gin.Context) {
 			}
 		case <-ticker.C:
 			// 获取最新市场数据
-			wsCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			wsCtx, cancel := utils.WithShortTimeout(context.Background())
+			
+			// 获取状态
+			status := s.getStatusForWS(wsCtx)
+			
+			// 获取持仓
+			positions := s.getPositionsForWS(wsCtx)
+			
+			// 获取余额
+			balance := s.getBalanceForWS(wsCtx)
+			
+			// 获取市场数据
 			marketData := s.getMarketDataForWS(wsCtx)
 			cancel()
 
-			data := map[string]interface{}{
-				"timestamp":   time.Now().Unix(),
-				"market_data": marketData,
+			// 发送状态更新
+			if status != nil {
+				data := map[string]interface{}{
+					"type":      "status",
+					"timestamp": time.Now().Unix(),
+				}
+				for k, v := range status {
+					data[k] = v
+				}
+				if err := s.sendWSMessage(conn, data); err != nil {
+					return
+				}
 			}
 
-			dataJSON, err := json.Marshal(data)
-			if err != nil {
-				s.logger.Warnw("WebSocket序列化失败", "error", err)
-				continue
+			// 发送持仓更新
+			if positions != nil {
+				data := map[string]interface{}{
+					"type":      "positions",
+					"positions": positions,
+					"timestamp": time.Now().Unix(),
+				}
+				if err := s.sendWSMessage(conn, data); err != nil {
+					return
+				}
 			}
 
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := conn.WriteMessage(websocket.TextMessage, dataJSON); err != nil {
-				s.logger.Warnw("WebSocket发送失败", "error", err)
-				metrics.RecordWebSocketMessage(false)
-				return
+			// 发送余额更新
+			if balance != nil {
+				data := map[string]interface{}{
+					"type":      "balance",
+					"balance":   balance,
+					"timestamp": time.Now().Unix(),
+				}
+				if err := s.sendWSMessage(conn, data); err != nil {
+					return
+				}
 			}
-			metrics.RecordWebSocketMessage(true)
+
+			// 发送市场数据更新
+			if marketData != nil && marketData["items"] != nil {
+				data := map[string]interface{}{
+					"type":        "market_data",
+					"market_data": marketData,
+					"timestamp":   time.Now().Unix(),
+				}
+				if err := s.sendWSMessage(conn, data); err != nil {
+					return
+				}
+			}
 		}
 	}
+}
+
+// sendWSMessage 发送WebSocket消息
+func (s *Server) sendWSMessage(conn *websocket.Conn, data map[string]interface{}) error {
+	dataJSON, err := json.Marshal(data)
+	if err != nil {
+		s.logger.Warnw("WebSocket序列化失败", "error", err)
+		return err
+	}
+
+	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	if err := conn.WriteMessage(websocket.TextMessage, dataJSON); err != nil {
+		s.logger.Warnw("WebSocket发送失败", "error", err)
+		metrics.RecordWebSocketMessage(false)
+		return err
+	}
+	metrics.RecordWebSocketMessage(true)
+	return nil
+}
+
+// getStatusForWS 获取WebSocket用的状态数据
+func (s *Server) getStatusForWS(ctx context.Context) map[string]interface{} {
+	status := map[string]interface{}{
+		"dry_run": s.config.DryRun,
+	}
+
+	// AI模式
+	aiMode := s.getAIMode()
+	status["ai_mode"] = aiMode["mode"]
+
+	return status
+}
+
+// getPositionsForWS 获取WebSocket用的持仓数据
+func (s *Server) getPositionsForWS(ctx context.Context) []map[string]interface{} {
+	positions, err := s.exchange.GetPositions()
+	if err != nil {
+		return nil
+	}
+
+	positionsList := make([]map[string]interface{}, 0, len(positions))
+	for _, pos := range positions {
+		unrealizedPnlPct := utils.CalculateUnrealizedPnlPct(pos)
+
+		positionsList = append(positionsList, map[string]interface{}{
+			"symbol":            pos.Symbol,
+			"side":              pos.Side,
+			"size":              pos.Size,
+			"entry_price":       pos.EntryPrice,
+			"mark_price":        pos.MarkPrice,
+			"unrealized_pnl":    pos.UnrealizedPnl,
+			"unrealized_pnl_pct": unrealizedPnlPct,
+			"leverage":          pos.Leverage,
+		})
+	}
+
+	return positionsList
+}
+
+// getBalanceForWS 获取WebSocket用的余额数据
+func (s *Server) getBalanceForWS(ctx context.Context) float64 {
+	balanceMap, err := s.exchange.GetBalance()
+	if err != nil {
+		return 0
+	}
+
+	// 提取USDT余额
+	if total, ok := balanceMap["total"].(float64); ok {
+		return total
+	}
+	return 0
 }
 
 // getMarketDataForWS 获取WebSocket用的市场数据

@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/pkg/types"
-	"github.com/yourusername/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
 )
 
 // BinanceExchange Binance交易所实现
@@ -44,7 +44,7 @@ func GetBinanceExchange() *BinanceExchange {
 
 // loadMarkets 加载市场信息
 func (be *BinanceExchange) loadMarkets() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := utils.WithMediumTimeout(context.Background())
 	defer cancel()
 
 	data, err := be.client.FetchJSON(ctx, "/fapi/v1/exchangeInfo", nil)
@@ -94,7 +94,7 @@ func (be *BinanceExchange) GetOHLCV(symbol, timeframe string, limit int) ([]type
 		"limit":    strconv.Itoa(limit),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := utils.WithMediumTimeout(context.Background())
 	defer cancel()
 
 	data, err := be.client.FetchJSON(ctx, "/fapi/v1/klines", params)
@@ -109,14 +109,32 @@ func (be *BinanceExchange) GetOHLCV(symbol, timeframe string, limit int) ([]type
 	}
 
 	result := make([]types.OHLCV, 0, len(klines))
-		for _, k := range klines {
+	for _, k := range klines {
 		if kline, ok := k.([]interface{}); ok && len(kline) >= 6 {
-			open, _ := parseFloatValue(kline[1])
-			high, _ := parseFloatValue(kline[2])
-			low, _ := parseFloatValue(kline[3])
-			closePrice, _ := parseFloatValue(kline[4])
-			volume, _ := parseFloatValue(kline[5])
-			timeMs, _ := parseFloatValue(kline[0])
+			open, err := parseFloatValue(kline[1])
+			if err != nil {
+				continue // 跳过解析失败的K线
+			}
+			high, err := parseFloatValue(kline[2])
+			if err != nil {
+				continue
+			}
+			low, err := parseFloatValue(kline[3])
+			if err != nil {
+				continue
+			}
+			closePrice, err := parseFloatValue(kline[4])
+			if err != nil {
+				continue
+			}
+			volume, err := parseFloatValue(kline[5])
+			if err != nil {
+				continue
+			}
+			timeMs, err := parseFloatValue(kline[0])
+			if err != nil {
+				continue
+			}
 
 			result = append(result, types.OHLCV{
 				Open:   open,
@@ -143,7 +161,7 @@ func (be *BinanceExchange) GetTickerPrice(symbol string) (float64, error) {
 		"symbol": symbol,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := utils.WithMediumTimeout(context.Background())
 	defer cancel()
 
 	data, err := be.client.FetchJSON(ctx, "/fapi/v1/ticker/price", params)
@@ -152,13 +170,11 @@ func (be *BinanceExchange) GetTickerPrice(symbol string) (float64, error) {
 	}
 
 	if dataMap, ok := data.(map[string]interface{}); ok {
-		if priceStr, ok := dataMap["price"].(string); ok {
-			price, err := strconv.ParseFloat(priceStr, 64)
-			if err != nil {
-				return 0, fmt.Errorf("parse price failed: %w", err)
-			}
-			return price, nil
+		price, err := parseStringOrFloat(dataMap, "price")
+		if err != nil {
+			return 0, fmt.Errorf("failed to get ticker price: %w", err)
 		}
+		return price, nil
 	}
 
 	return 0, fmt.Errorf("invalid ticker data format")
@@ -172,7 +188,7 @@ func (be *BinanceExchange) GetFundingRate(symbol string) (float64, error) {
 		"symbol": symbol,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := utils.WithMediumTimeout(context.Background())
 	defer cancel()
 
 	data, err := be.client.FetchJSON(ctx, "/fapi/v1/premiumIndex", params)
@@ -181,13 +197,11 @@ func (be *BinanceExchange) GetFundingRate(symbol string) (float64, error) {
 	}
 
 	if dataMap, ok := data.(map[string]interface{}); ok {
-		if rateStr, ok := dataMap["lastFundingRate"].(string); ok {
-			rate, err := strconv.ParseFloat(rateStr, 64)
-			if err != nil {
-				return 0, fmt.Errorf("parse funding rate failed: %w", err)
-			}
-			return rate, nil
+		rate, err := parseStringOrFloat(dataMap, "lastFundingRate")
+		if err != nil {
+			return 0, fmt.Errorf("failed to get funding rate: %w", err)
 		}
+		return rate, nil
 	}
 
 	return 0, fmt.Errorf("invalid funding rate data format")
@@ -201,7 +215,7 @@ func (be *BinanceExchange) GetOpenInterest(symbol string) (float64, error) {
 		"symbol": symbol,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := utils.WithMediumTimeout(context.Background())
 	defer cancel()
 
 	data, err := be.client.FetchJSON(ctx, "/fapi/v1/openInterest", params)
@@ -210,13 +224,11 @@ func (be *BinanceExchange) GetOpenInterest(symbol string) (float64, error) {
 	}
 
 	if dataMap, ok := data.(map[string]interface{}); ok {
-		if oiStr, ok := dataMap["openInterest"].(string); ok {
-			oi, err := strconv.ParseFloat(oiStr, 64)
-			if err != nil {
-				return 0, fmt.Errorf("parse open interest failed: %w", err)
-			}
-			return oi, nil
+		oi, err := parseStringOrFloat(dataMap, "openInterest")
+		if err != nil {
+			return 0, fmt.Errorf("failed to get open interest: %w", err)
 		}
+		return oi, nil
 	}
 
 	return 0, fmt.Errorf("invalid open interest data format")
@@ -296,21 +308,9 @@ func (be *BinanceExchange) setCache(key string, data interface{}) {
 	}
 }
 
+// parseFloatValue 使用utils包中的ParseFloatValue
 func parseFloatValue(v interface{}) (float64, error) {
-	switch val := v.(type) {
-	case float64:
-		return val, nil
-	case float32:
-		return float64(val), nil
-	case string:
-		return strconv.ParseFloat(val, 64)
-	case int:
-		return float64(val), nil
-	case int64:
-		return float64(val), nil
-	default:
-		return 0, fmt.Errorf("cannot convert %T to float64", v)
-	}
+	return utils.ParseFloatValue(v)
 }
 
 func parseStringValue(v interface{}) string {
@@ -329,5 +329,10 @@ func parseStringValue(v interface{}) string {
 	default:
 		return fmt.Sprintf("%v", val)
 	}
+}
+
+// parseBoolValue 使用utils包中的ParseBoolValue
+func parseBoolValue(v interface{}) (bool, error) {
+	return utils.ParseBoolValue(v)
 }
 

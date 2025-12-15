@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
 )
 
 // handleStatus 获取系统状态（带缓存）
@@ -21,7 +21,7 @@ func (s *Server) handleStatus(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	status := map[string]interface{}{
@@ -57,7 +57,7 @@ func (s *Server) handleStatus(c *gin.Context) {
 
 // handleMarketData 获取市场数据（带超时和错误处理）
 func (s *Server) handleMarketData(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	// 从Redis读取最近扫描的市场数据
@@ -115,7 +115,7 @@ func (s *Server) handleSetAIMode(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	key := config.GetRedisKey("ai_mode")
@@ -131,7 +131,7 @@ func (s *Server) handleSetAIMode(c *gin.Context) {
 
 // handleGetAIPrompt 获取AI提示词
 func (s *Server) handleGetAIPrompt(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	key := config.GetRedisKey("ai_prompt")
@@ -167,7 +167,7 @@ func (s *Server) handleSetAIPrompt(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	key := config.GetRedisKey("ai_prompt")
@@ -186,7 +186,7 @@ func (s *Server) handleSetAIPrompt(c *gin.Context) {
 
 // handleDeleteAIPrompt 删除AI提示词（恢复默认）
 func (s *Server) handleDeleteAIPrompt(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	key := config.GetRedisKey("ai_prompt")
@@ -200,7 +200,7 @@ func (s *Server) handleDeleteAIPrompt(c *gin.Context) {
 
 // handleGetRuntimeConfig 获取运行时配置
 func (s *Server) handleGetRuntimeConfig(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	key := config.GetRedisKey("runtime_config")
@@ -236,7 +236,7 @@ func (s *Server) handleSetRuntimeConfig(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	// 读取现有配置
@@ -275,7 +275,7 @@ func (s *Server) handleDeleteRuntimeConfig(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	// 读取现有配置
@@ -316,7 +316,7 @@ func (s *Server) handleRuntimeConfigAudit(c *gin.Context) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	key := config.GetRedisKey("runtime_config_audit")
@@ -351,7 +351,7 @@ func (s *Server) handleWSToken(c *gin.Context) {
 	}
 	payloadJSON, _ := json.Marshal(payload)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	if err := s.redis.Set(ctx, key, payloadJSON, time.Duration(ttl)*time.Second).Err(); err != nil {
@@ -378,7 +378,7 @@ func (s *Server) handleBalance(c *gin.Context) {
 
 // handlePositions 获取持仓
 func (s *Server) handlePositions(c *gin.Context) {
-	_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	_, cancel := utils.WithMediumTimeout(context.Background())
 	defer cancel()
 
 	positions, err := s.exchange.GetPositions()
@@ -389,14 +389,17 @@ func (s *Server) handlePositions(c *gin.Context) {
 
 	positionsList := make([]map[string]interface{}, 0, len(positions))
 	for _, pos := range positions {
+		unrealizedPnlPct := utils.CalculateUnrealizedPnlPct(pos)
+
 		positionsList = append(positionsList, map[string]interface{}{
-			"symbol":        pos.Symbol,
-			"side":          pos.Side,
-			"size":          pos.Size,
-			"entry_price":   pos.EntryPrice,
-			"mark_price":    pos.MarkPrice,
-			"unrealized_pnl": pos.UnrealizedPnl,
-			"leverage":      pos.Leverage,
+			"symbol":            pos.Symbol,
+			"side":              pos.Side,
+			"size":              pos.Size,
+			"entry_price":       pos.EntryPrice,
+			"mark_price":        pos.MarkPrice,
+			"unrealized_pnl":    pos.UnrealizedPnl,
+			"unrealized_pnl_pct": unrealizedPnlPct,
+			"leverage":          pos.Leverage,
 		})
 	}
 
@@ -405,7 +408,7 @@ func (s *Server) handlePositions(c *gin.Context) {
 
 // handleEquity 获取权益
 func (s *Server) handleEquity(c *gin.Context) {
-	_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	_, cancel := utils.WithMediumTimeout(context.Background())
 	defer cancel()
 
 	balanceMap, err := s.exchange.GetBalance()
@@ -449,7 +452,7 @@ func (s *Server) handleHistory(c *gin.Context) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	key := config.GetRedisKey("signal_history")
@@ -472,7 +475,7 @@ func (s *Server) handleHistory(c *gin.Context) {
 
 // handleLatestAIDecision 获取最新AI决策
 func (s *Server) handleLatestAIDecision(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	key := config.GetRedisKey("deepseek_analysis_response_history")
@@ -493,7 +496,7 @@ func (s *Server) handleLatestAIDecision(c *gin.Context) {
 
 // handleScannedSymbols 获取扫描的币种
 func (s *Server) handleScannedSymbols(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	key := config.GetRedisKey("scanner_last_scan")
@@ -523,7 +526,7 @@ func (s *Server) handleScannedSymbols(c *gin.Context) {
 
 // getAIMode 获取AI模式
 func (s *Server) getAIMode() map[string]string {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := utils.WithShortTimeout(context.Background())
 	defer cancel()
 
 	key := config.GetRedisKey("ai_mode")

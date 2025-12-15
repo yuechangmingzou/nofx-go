@@ -1,7 +1,7 @@
 package strategies
 
 import (
-	"github.com/yourusername/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 )
 
 // RuleStrategy 规则策略接口

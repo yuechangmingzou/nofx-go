@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
 )
 
 // GetBalance 获取账户余额

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/utils"
-	"github.com/yourusername/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 )
 
 // EnsureSLTPGuardOnce 确保止损止盈守护（单次执行）
@@ -51,7 +51,8 @@ func (e *ExecutionEngine) EnsureSLTPGuardOnce(ctx context.Context, intervalTag s
 
 		// 获取分布式锁
 		lockKey := fmt.Sprintf("guard:lock:%s:%s", symbol, positionSide)
-		lockToken, err := e.acquireLock(ctx, lockKey, 30*time.Second)
+		// 使用60秒TTL，确保有足够时间完成操作
+		lockToken, err := e.acquireLock(ctx, lockKey, 60*time.Second)
 		if err != nil {
 			continue
 		}
@@ -72,11 +73,11 @@ func (e *ExecutionEngine) EnsureSLTPGuardOnce(ctx context.Context, intervalTag s
 				return
 			}
 
-			stopLoss := getFloat(protection, "stop_loss", 0)
-			takeProfit1 := getFloat(protection, "take_profit_1", 0)
-			takeProfit2 := getFloat(protection, "take_profit_2", 0)
-			tp1Ratio := getFloat(protection, "tp1_ratio", cfg.TP1PartialRatio)
-			signalID := getString(protection, "signal_id", "")
+			stopLoss := utils.GetFloat(protection, "stop_loss", 0)
+			takeProfit1 := utils.GetFloat(protection, "take_profit_1", 0)
+			takeProfit2 := utils.GetFloat(protection, "take_profit_2", 0)
+			tp1Ratio := utils.GetFloat(protection, "tp1_ratio", cfg.TP1PartialRatio)
+			signalID := utils.GetString(protection, "signal_id", "")
 
 			if stopLoss <= 0 || takeProfit1 <= 0 {
 				e.saveAudit(ctx, map[string]interface{}{
@@ -91,12 +92,33 @@ func (e *ExecutionEngine) EnsureSLTPGuardOnce(ctx context.Context, intervalTag s
 				return
 			}
 
-			// 获取当前挂单
-			// TODO: 实现GetOpenOrders以检查是否已有止损止盈单
-			// 当前简化实现：总是补挂（守护进程会去重）
+			// 获取当前挂单，检查是否已有止损止盈单
 			hasSL := false
 			hasTP1 := false
 			hasTP2 := false
+			
+			orders, err := e.exchange.GetOpenOrders(symbol)
+			if err == nil && orders != nil {
+				for _, o := range orders {
+					// 检查止损单
+					if o.ReduceOnly && (o.OrderType == "STOP" || o.OrderType == "STOP_MARKET") {
+						if (side == "LONG" && o.Side == "SELL") || (side == "SHORT" && o.Side == "BUY") {
+							hasSL = true
+						}
+					}
+					// 检查止盈单
+					if o.ReduceOnly && (o.OrderType == "TAKE_PROFIT" || o.OrderType == "TAKE_PROFIT_MARKET") {
+						if (side == "LONG" && o.Side == "SELL") || (side == "SHORT" && o.Side == "BUY") {
+							// 根据价格判断是TP1还是TP2
+							if takeProfit1 > 0 && math.Abs(o.Price-takeProfit1) < math.Abs(o.Price-takeProfit2) {
+								hasTP1 = true
+							} else if takeProfit2 > 0 {
+								hasTP2 = true
+							}
+						}
+					}
+				}
+			}
 
 			// 计算分批止盈数量
 			tp1Ratio = math.Max(0.0, math.Min(tp1Ratio, 1.0))
@@ -190,11 +212,21 @@ func (e *ExecutionEngine) cleanupProtection(ctx context.Context, posMap map[stri
 	logger := utils.GetLogger("execution_guard")
 	pattern := config.GetRedisKey("protection:*")
 
-	// 使用KEYS命令（生产环境建议使用SCAN，但需要实现迭代器）
-	keys, err := e.redis.Keys(ctx, pattern).Result()
-	if err != nil {
-		logger.Debugw("清理保护信息失败", "error", err)
-		return
+	// 使用SCAN命令替代KEYS，避免阻塞Redis
+	var keys []string
+	var cursor uint64 = 0
+	for {
+		var err error
+		var batch []string
+		batch, cursor, err = e.redis.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			logger.Debugw("清理保护信息失败", "error", err)
+			return
+		}
+		keys = append(keys, batch...)
+		if cursor == 0 {
+			break // 扫描完成
+		}
 	}
 
 	cancelledTotal := 0
@@ -232,7 +264,7 @@ func (e *ExecutionEngine) cleanupProtection(ctx context.Context, posMap map[stri
 				}
 
 				// 撤销订单
-				if _, err := e.exchange.CancelOrder(o.ID, symbol); err == nil {
+				if err := e.exchange.CancelOrder(symbol, o.ID); err == nil {
 					cancelled++
 				}
 			}
@@ -313,17 +345,4 @@ func (e *ExecutionEngine) SaveProtection(ctx context.Context, symbol, side strin
 	e.redis.Set(ctx, key, protectionJSON, ttl)
 }
 
-// 辅助函数
-func getFloat(m map[string]interface{}, key string, defaultValue float64) float64 {
-	if v, ok := m[key].(float64); ok {
-		return v
-	}
-	return defaultValue
-}
-
-func getString(m map[string]interface{}, key string, defaultValue string) string {
-	if v, ok := m[key].(string); ok {
-		return v
-	}
-	return defaultValue
-}
+// 辅助函数已迁移到utils包，使用utils.GetFloat和utils.GetString

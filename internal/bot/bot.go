@@ -6,21 +6,21 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/ai"
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/exchange"
-	"github.com/yourusername/nofx-go/internal/execution"
-	"github.com/yourusername/nofx-go/internal/metrics"
-	"github.com/yourusername/nofx-go/internal/strategies"
-	"github.com/yourusername/nofx-go/internal/utils"
-	"github.com/yourusername/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/internal/ai"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/exchange"
+	"github.com/yuechangmingzou/nofx-go/internal/execution"
+	"github.com/yuechangmingzou/nofx-go/internal/metrics"
+	"github.com/yuechangmingzou/nofx-go/internal/strategies"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 )
 
 // Bot 交易机器人
 type Bot struct {
 	aiTrader         *ai.AITrader
 	execEngine       *execution.ExecutionEngine
-	exchange         *exchange.BinanceExchange
+	exchange         types.Exchange
 	redis            utils.RedisClient
 	warnedAIDisabled bool
 }
@@ -70,9 +70,30 @@ func (b *Bot) ProcessSignal(ctx context.Context, marketData *types.MarketData) b
 	mode := b.getAIMode()
 
 	// 获取账户快照（用于AI决策）
-	_ = b.getAccountSnapshot()
-
-	// TODO: 补充账户信息到市场数据（如果MarketData有Account字段）
+	accountSnapshot := b.getAccountSnapshot()
+	
+	// 补充账户信息到市场数据
+	if accountSnapshot != nil {
+		// 检查是否有错误
+		if errorMsg, hasError := accountSnapshot["error"].(string); hasError {
+			logger.Debugw("账户信息获取失败，继续使用市场数据",
+				"symbol", symbol,
+				"error", errorMsg,
+			)
+		} else {
+			accountInfo := &types.AccountInfo{}
+			if balance, ok := accountSnapshot["balance"].(map[string]float64); ok && balance != nil {
+				accountInfo.Balance = balance
+			}
+			if positions, ok := accountSnapshot["positions"].([]map[string]interface{}); ok && positions != nil {
+				accountInfo.Positions = positions
+			}
+			// 只有当有有效数据时才设置
+			if accountInfo.Balance != nil || (accountInfo.Positions != nil && len(accountInfo.Positions) > 0) {
+				marketData.Account = accountInfo
+			}
+		}
+	}
 
 	var action string
 	var signal *types.Signal
@@ -117,20 +138,27 @@ func (b *Bot) ProcessSignal(ctx context.Context, marketData *types.MarketData) b
 
 	// 如果是交易动作，保存信号并推送到队列
 	if (action == "open_long" || action == "open_short" || action == "close_long" || action == "close_short") && signal != nil {
+		// 生成唯一signalID（如果还没有）
+		if signal.SignalID == "" {
+			signal.SignalID = fmt.Sprintf("%s_%d_%d", symbol, time.Now().UnixNano(), signal.Timestamp)
+		}
+		
 		// 保存信号到Redis
 		signalKey := config.GetRedisKey(fmt.Sprintf("signal:%s", symbol))
 		signalData := map[string]interface{}{
-			"symbol":      signal.Symbol,
-			"action":      signal.Action,
-			"side":        signal.Side,
-			"entry_price": signal.EntryPrice,
-			"stop_loss":   signal.StopLoss,
-			"take_profit": signal.TakeProfit,
-			"quantity":    signal.Quantity,
-			"leverage":    signal.Leverage,
-			"reason":      signal.Reason,
-			"status":      "pending",
-			"timestamp":   time.Now().Unix(),
+			"symbol":       signal.Symbol,
+			"action":       signal.Action,
+			"side":         signal.Side,
+			"entry_price":  signal.EntryPrice,
+			"stop_loss":    signal.StopLoss,
+			"take_profit":  signal.TakeProfit,
+			"take_profit_2": signal.TakeProfit2,
+			"quantity":     signal.Quantity,
+			"leverage":     signal.Leverage,
+			"reason":       signal.Reason,
+			"signal_id":    signal.SignalID,
+			"status":       "pending",
+			"timestamp":    time.Now().Unix(),
 		}
 
 		signalJSON, _ := json.Marshal(signalData)
@@ -237,16 +265,18 @@ func (b *Bot) RunBot(ctx context.Context) error {
 
 		// 构建Signal对象
 		signal := &types.Signal{
-			Symbol:     symbol,
-			Action:     action,
-			Side:       getString(signalData, "side", ""),
-			EntryPrice: getFloat(signalData, "entry_price", 0),
-			StopLoss:   getFloat(signalData, "stop_loss", 0),
-			TakeProfit: getFloat(signalData, "take_profit", 0),
-			Quantity:   getFloat(signalData, "quantity", 0),
-			Leverage:   int(getFloat(signalData, "leverage", 0)),
-			Reason:     getString(signalData, "reason", ""),
-			Timestamp:  int64(getFloat(signalData, "timestamp", 0)),
+			Symbol:      symbol,
+			Action:      action,
+			Side:        utils.GetString(signalData, "side", ""),
+			EntryPrice:  utils.GetFloat(signalData, "entry_price", 0),
+			StopLoss:    utils.GetFloat(signalData, "stop_loss", 0),
+			TakeProfit:  utils.GetFloat(signalData, "take_profit", 0),
+			TakeProfit2: utils.GetFloat(signalData, "take_profit_2", 0),
+			Quantity:    utils.GetFloat(signalData, "quantity", 0),
+			Leverage:    int(utils.GetFloat(signalData, "leverage", 0)),
+			Reason:      utils.GetString(signalData, "reason", ""),
+			SignalID:    utils.GetString(signalData, "signal_id", ""),
+			Timestamp:   int64(utils.GetFloat(signalData, "timestamp", 0)),
 		}
 
 		// 执行交易
@@ -294,7 +324,8 @@ func (b *Bot) getAIMode() string {
 	cfg := config.Get()
 	key := config.GetRedisKey("ai_mode")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// 使用传入的context（如果有），否则创建新的
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
 	defer cancel()
 
 	mode, err := b.redis.Get(ctx, key).Result()
@@ -357,25 +388,16 @@ func (b *Bot) getAccountSnapshot() map[string]interface{} {
 	}
 }
 
-// 辅助函数
-func getString(m map[string]interface{}, key string, defaultValue string) string {
-	if v, ok := m[key].(string); ok {
-		return v
-	}
-	return defaultValue
-}
-
-func getFloat(m map[string]interface{}, key string, defaultValue float64) float64 {
-	if v, ok := m[key].(float64); ok {
-		return v
-	}
-	return defaultValue
-}
+// 辅助函数已迁移到utils包，使用utils.GetString和utils.GetFloat
 
 // saveRuleDecisionHistory 保存规则决策历史
 func (b *Bot) saveRuleDecisionHistory(symbol, action string, fullDecision map[string]interface{}) {
 	cfg := config.Get()
 	key := config.GetRedisKey("deepseek_analysis_response_history")
+
+	// 使用带超时的context，避免阻塞
+	ctx, cancel := utils.WithDefaultTimeout(context.Background())
+	defer cancel()
 
 	payload := map[string]interface{}{
 		"symbol":        symbol,
@@ -386,18 +408,18 @@ func (b *Bot) saveRuleDecisionHistory(symbol, action string, fullDecision map[st
 	}
 
 	payloadJSON, _ := json.Marshal(payload)
-	b.redis.LPush(context.Background(), key, payloadJSON)
+	b.redis.LPush(ctx, key, payloadJSON)
 
 	// 限制历史记录长度
 	maxLen := cfg.AIDecisionHistoryMaxLen
 	if maxLen <= 0 {
 		maxLen = 500
 	}
-	b.redis.LTrim(context.Background(), key, 0, int64(maxLen-1))
+	b.redis.LTrim(ctx, key, 0, int64(maxLen-1))
 
 	// 更新AI统计（标记为rule模式）
 	statsKey := config.GetRedisKey("ai_api_stats")
-	b.redis.HSet(context.Background(), statsKey,
+	b.redis.HSet(ctx, statsKey,
 		"ts", fmt.Sprintf("%d", time.Now().Unix()),
 		"symbol", symbol,
 		"ok", "1",
@@ -412,5 +434,5 @@ func (b *Bot) saveRuleDecisionHistory(symbol, action string, fullDecision map[st
 	if ttl <= 0 {
 		ttl = 24 * time.Hour
 	}
-	b.redis.Expire(context.Background(), statsKey, ttl)
+	b.redis.Expire(ctx, statsKey, ttl)
 }

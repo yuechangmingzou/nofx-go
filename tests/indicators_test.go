@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/yourusername/nofx-go/internal/indicators"
+	"github.com/yuechangmingzou/nofx-go/internal/indicators"
 )
 
 func TestCalculateEMA(t *testing.T) {

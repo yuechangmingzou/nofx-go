@@ -8,16 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/exchange"
-	"github.com/yourusername/nofx-go/internal/indicators"
-	"github.com/yourusername/nofx-go/internal/utils"
-	"github.com/yourusername/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/exchange"
+	"github.com/yuechangmingzou/nofx-go/internal/indicators"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 )
 
 // Scanner 市场扫描器
 type Scanner struct {
-	exchange *exchange.BinanceExchange
+	exchange types.Exchange
 	redis    utils.RedisClient
 }
 

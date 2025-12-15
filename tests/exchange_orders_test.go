@@ -3,8 +3,8 @@ package tests
 import (
 	"testing"
 
-	"github.com/yourusername/nofx-go/internal/exchange"
-	"github.com/yourusername/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/internal/exchange"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 )
 
 func TestBinanceExchange_PlaceOrder_DryRun(t *testing.T) {
@@ -94,6 +94,59 @@ func TestBinanceExchange_GetBalance_DryRun(t *testing.T) {
 	// DRY_RUN模式下应该有默认余额
 	if balance["total"] == 0 {
 		t.Error("Expected non-zero balance in DRY_RUN mode")
+	}
+}
+
+func TestBinanceExchange_GetOrder_DryRun(t *testing.T) {
+	be := exchange.GetBinanceExchange()
+
+	order, err := be.GetOrder("BTCUSDT", "12345")
+	if err != nil {
+		t.Fatalf("GetOrder failed: %v", err)
+	}
+
+	if order == nil {
+		t.Fatal("Order should not be nil")
+	}
+
+	if order.ID != "12345" {
+		t.Errorf("Expected order ID 12345, got %s", order.ID)
+	}
+
+	if order.Symbol != "BTCUSDT" {
+		t.Errorf("Expected symbol BTCUSDT, got %s", order.Symbol)
+	}
+}
+
+func TestBinanceExchange_GetOpenOrders_DryRun(t *testing.T) {
+	be := exchange.GetBinanceExchange()
+
+	orders, err := be.GetOpenOrders("BTCUSDT")
+	if err != nil {
+		t.Fatalf("GetOpenOrders failed: %v", err)
+	}
+
+	if orders == nil {
+		t.Fatal("Orders should not be nil")
+	}
+
+	// DRY_RUN模式下应该返回空列表
+	if len(orders) != 0 {
+		t.Errorf("Expected empty orders in DRY_RUN mode, got %d", len(orders))
+	}
+}
+
+func TestBinanceExchange_GetPosition_DryRun(t *testing.T) {
+	be := exchange.GetBinanceExchange()
+
+	position, err := be.GetPosition("BTCUSDT")
+	if err != nil {
+		t.Fatalf("GetPosition failed: %v", err)
+	}
+
+	// DRY_RUN模式下可能返回nil或空持仓
+	if position != nil && position.Size != 0 {
+		t.Errorf("Expected empty position in DRY_RUN mode, got size %f", position.Size)
 	}
 }
 

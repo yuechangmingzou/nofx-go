@@ -6,15 +6,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourusername/nofx-go/internal/config"
-	"github.com/yourusername/nofx-go/internal/exchange"
-	"github.com/yourusername/nofx-go/internal/utils"
-	"github.com/yourusername/nofx-go/pkg/types"
+	"github.com/yuechangmingzou/nofx-go/internal/config"
+	"github.com/yuechangmingzou/nofx-go/internal/exchange"
+	"github.com/yuechangmingzou/nofx-go/internal/utils"
+	"github.com/yuechangmingzou/nofx-go/pkg/types"
 )
 
 // ExecutionEngine 执行引擎
 type ExecutionEngine struct {
-	exchange *exchange.BinanceExchange
+	exchange types.Exchange
 	redis    utils.RedisClient
 }
 
@@ -37,11 +37,18 @@ func (e *ExecutionEngine) PlaceOrderFromSignal(ctx context.Context, signal *type
 	cfg := config.Get()
 
 	symbol := signal.Symbol
-	signalID := signal.Symbol // 简化：使用symbol作为signal_id
+	// 生成唯一signalID
+	signalID := signal.SignalID
+	if signalID == "" {
+		// 如果没有提供signalID，生成一个唯一ID
+		// 使用时间戳+随机数确保唯一性
+		signalID = fmt.Sprintf("%s_%d_%d", symbol, time.Now().UnixNano(), signal.Timestamp)
+	}
 
 	// 第一步：获取分布式锁
 	lockKey := fmt.Sprintf("execution:lock:%s", symbol)
-	lockToken, err := e.acquireLock(ctx, lockKey, 30*time.Second)
+	// 使用60秒TTL，确保有足够时间完成操作（包括订单确认）
+	lockToken, err := e.acquireLock(ctx, lockKey, 60*time.Second)
 	if err != nil {
 		return false, "获取锁失败（可能有并发下单）", nil
 	}
@@ -98,20 +105,33 @@ func (e *ExecutionEngine) PlaceOrderFromSignal(ctx context.Context, signal *type
 		return false, fmt.Sprintf("下单失败: %v", err), nil
 	}
 
-	// 第六步：订单确认
-	confirmed, confirmReason := e.confirmOrder(ctx, symbol, order.ID, 30*time.Second)
-	if !confirmed {
-		logger.Warnw("订单确认失败",
-			"symbol", symbol,
-			"order_id", order.ID,
-			"reason", confirmReason,
-		)
-		// 即使确认失败，也返回订单（可能只是网络延迟）
-	}
+	// 第六步：订单确认（异步，不阻塞主流程）
+	// 使用goroutine异步确认，避免阻塞
+	go func() {
+		confirmCtx, confirmCancel := utils.WithLongTimeout(context.Background())
+		defer confirmCancel()
+		confirmed, confirmReason := e.confirmOrder(confirmCtx, symbol, order.ID, utils.LongTimeout)
+		if !confirmed {
+			logger.Warnw("订单确认失败",
+				"symbol", symbol,
+				"order_id", order.ID,
+				"reason", confirmReason,
+			)
+		} else {
+			logger.Infow("订单确认成功",
+				"symbol", symbol,
+				"order_id", order.ID,
+			)
+		}
+	}()
 
 	// 第七步：保存保护信息（用于守护进程）
 	if signal.StopLoss > 0 || signal.TakeProfit > 0 {
-		e.SaveProtection(ctx, symbol, signal.Side, signal.StopLoss, signal.TakeProfit, 0, signalID)
+		takeProfit2 := signal.TakeProfit2
+		if takeProfit2 <= 0 {
+			takeProfit2 = 0 // 明确设置为0
+		}
+		e.SaveProtection(ctx, symbol, signal.Side, signal.StopLoss, signal.TakeProfit, takeProfit2, signalID)
 	}
 
 	// 第八步：下止损单（由守护进程补挂，这里先保存保护信息）
@@ -176,7 +196,8 @@ func (e *ExecutionEngine) ClosePositionFromAction(ctx context.Context, signal *t
 
 	// 获取分布式锁
 	lockKey := fmt.Sprintf("execution:lock:%s", symbol)
-	lockToken, err := e.acquireLock(ctx, lockKey, 30*time.Second)
+	// 使用60秒TTL，确保有足够时间完成操作
+	lockToken, err := e.acquireLock(ctx, lockKey, 60*time.Second)
 	if err != nil {
 		return false, "获取锁失败", nil
 	}

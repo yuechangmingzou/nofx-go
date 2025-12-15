@@ -34,6 +34,15 @@ type MarketData struct {
 	// 预过滤字段
 	VolumePeakRatio  float64 `json:"volume_peak_ratio,omitempty"`
 	ConsecutiveCount int     `json:"consecutive_count,omitempty"`
+	
+	// 账户信息（可选，用于AI决策）
+	Account *AccountInfo `json:"account,omitempty"`
+}
+
+// AccountInfo 账户信息
+type AccountInfo struct {
+	Balance   map[string]float64        `json:"balance,omitempty"`
+	Positions []map[string]interface{}  `json:"positions,omitempty"`
 }
 
 // OHLCV K线数据
@@ -56,16 +65,18 @@ type BollingerBands struct {
 
 // Signal 交易信号
 type Signal struct {
-	Symbol      string  `json:"symbol"`
-	Action      string  `json:"action"` // open_long, open_short, close_long, close_short, hold, wait
-	Side        string  `json:"side"`   // long, short
-	EntryPrice  float64 `json:"entry_price,omitempty"`
-	StopLoss    float64 `json:"stop_loss,omitempty"`
-	TakeProfit  float64 `json:"take_profit,omitempty"`
-	Quantity    float64 `json:"quantity,omitempty"`
-	Leverage    int     `json:"leverage,omitempty"`
-	Reason      string  `json:"reason,omitempty"`
-	Timestamp   int64   `json:"timestamp"`
+	Symbol       string  `json:"symbol"`
+	Action       string  `json:"action"` // open_long, open_short, close_long, close_short, hold, wait
+	Side         string  `json:"side"`   // long, short
+	EntryPrice   float64 `json:"entry_price,omitempty"`
+	StopLoss     float64 `json:"stop_loss,omitempty"`
+	TakeProfit   float64 `json:"take_profit,omitempty"`
+	TakeProfit2  float64 `json:"take_profit_2,omitempty"` // 二级止盈
+	Quantity     float64 `json:"quantity,omitempty"`
+	Leverage     int     `json:"leverage,omitempty"`
+	Reason       string  `json:"reason,omitempty"`
+	SignalID     string  `json:"signal_id,omitempty"` // 唯一信号ID
+	Timestamp    int64   `json:"timestamp"`
 }
 
 // Order 订单
@@ -81,6 +92,7 @@ type Order struct {
 	Status        string  `json:"status"` // NEW, FILLED, CANCELED, REJECTED
 	FilledQty     float64 `json:"filled_qty"`
 	AvgPrice      float64 `json:"avg_price,omitempty"`
+	ReduceOnly    bool    `json:"reduce_only,omitempty"`
 	Timestamp     int64   `json:"timestamp"`
 }
 
@@ -126,6 +138,9 @@ type Exchange interface {
 	
 	// 获取账户余额（可选）
 	GetBalance() (map[string]float64, error)
+	
+	// 获取当前挂单
+	GetOpenOrders(symbol string) ([]*Order, error)
 }
 
 // OrderRequest 订单请求
