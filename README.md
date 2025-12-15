@@ -100,8 +100,7 @@ nofx-go/
 │   ├── utils/             # 工具函数（加密、日志、Redis、工具类）
 │   └── web/               # Web服务（HTTP API、WebSocket、Dashboard）
 ├── pkg/                   # 公共包
-│   ├── types/             # 类型定义（Exchange接口、数据结构）
-│   └── version/           # 版本信息
+│   └── types/             # 类型定义（Exchange接口、数据结构）
 ├── docs/                  # 文档
 │   └── API_KEY_ENCRYPTION.md  # API密钥加密指南
 ├── tests/                 # 测试
