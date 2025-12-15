@@ -13,6 +13,7 @@ Go语言实现的量化交易机器人，支持AI交易和规则策略两种模�
 - ✅ **安全可靠** - API密钥加密存储、WebSocket认证、CORS配置
 - ✅ **代码质量** - 模块化设计、接口抽象、工具函数复用、遵循DRY原则
 - ✅ **实时监控** - Web Dashboard、WebSocket实时推送、性能指标收集
+- ✅ **Docker 部署** - 提供一键部署脚本，支持 Ubuntu 22.04，自动配置和启动
 
 ## 📋 主要功能
 
@@ -79,6 +80,38 @@ bash deploy.sh
 # 详细说明请参考 docs/DOCKER_DEPLOY.md
 ```
 
+### Docker 部署
+
+项目提供了完整的 Docker 部署方案，支持一键部署：
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/yuechangmingzou/nofx-go.git
+cd nofx-go
+
+# 2. 运行一键部署脚本（Ubuntu 22.04）
+chmod +x deploy.sh
+bash deploy.sh
+
+# 3. 配置环境变量
+# 脚本会自动创建 .env 文件，编辑并填入您的配置
+nano .env
+
+# 4. 访问服务
+# Web Dashboard: http://localhost:8000
+# Health Check: http://localhost:8000/healthz
+```
+
+**Docker 部署特性**：
+- ✅ 自动安装 Docker 和 Docker Compose
+- ✅ 自动配置环境变量
+- ✅ 自动生成加密密钥
+- ✅ 健康检查和自动重启
+- ✅ Redis 数据持久化
+
+详细部署说明请参考 [Docker 部署指南](docs/DOCKER_DEPLOY.md)
+```
+
 ## 📁 项目结构
 
 ```
@@ -102,7 +135,8 @@ nofx-go/
 ├── pkg/                   # 公共包
 │   └── types/             # 类型定义（Exchange接口、数据结构）
 ├── docs/                  # 文档
-│   └── API_KEY_ENCRYPTION.md  # API密钥加密指南
+│   ├── API_KEY_ENCRYPTION.md  # API密钥加密指南
+│   └── DOCKER_DEPLOY.md       # Docker一键部署指南
 ├── tests/                 # 测试
 ├── strategies/            # 策略文件
 ├── web/                   # Web静态资源
@@ -113,6 +147,7 @@ nofx-go/
 ├── Makefile               # 构建脚本
 ├── Dockerfile             # Docker镜像
 ├── docker-compose.yml     # Docker Compose配置
+├── deploy.sh              # Docker一键部署脚本（Ubuntu 22.04）
 ├── go.mod                 # Go模块定义
 ├── README.md              # 项目说明
 ├── CHANGELOG.md           # 变更日志
@@ -235,6 +270,7 @@ make encrypt        # 加密工具
 
 ## 📚 文档
 
+- [Docker 部署指南](docs/DOCKER_DEPLOY.md) - Docker 一键部署详细说明
 - [API 密钥加密存储指南](docs/API_KEY_ENCRYPTION.md) - 详细的加密存储使用说明
 - [变更日志](CHANGELOG.md) - 版本更新记录
 - [贡献指南](CONTRIBUTING.md) - 如何参与项目贡献
