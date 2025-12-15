@@ -1,0 +1,55 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+main.exe
+cmd.exe
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local
+
+# Build artifacts
+dist/
+build/
+bin/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary audit and fix reports
+*_AUDIT*.md
+*_FIXES*.md
+*_REPORT.md
+*_SUMMARY.md
+*DEFECTS*.md
+*STATUS*.md
+*COMPLETION*.md
+*OPTIMIZATION*.md
+*PUSH*.md
+*.ps1
