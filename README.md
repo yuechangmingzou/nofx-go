@@ -71,6 +71,12 @@ go build -o bin/nofx-go ./cmd/main.go
 # 方式3: 使用Makefile
 make build
 make run
+
+# 方式4: Docker 一键部署（推荐用于生产环境）
+# 适用于 Linux Ubuntu 22.04 64位操作系统
+chmod +x deploy.sh
+bash deploy.sh
+# 详细说明请参考 docs/DOCKER_DEPLOY.md
 ```
 
 ## 📁 项目结构
