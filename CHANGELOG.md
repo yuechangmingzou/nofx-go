@@ -23,7 +23,6 @@
 - 添加配置文件示例 `.env.example`
 - 添加代码质量工具配置 `.golangci.yml`, `.editorconfig`
 - 添加CI/CD配置 `.github/workflows/ci.yml`
-- 添加版本信息 `pkg/version/version.go`
 - 添加API密钥加密存储功能
 - 添加公共工具包（maputil, contextutil, jsonutil, parseutil, positionutil）
 - 添加.gitattributes文件，确保文本文件正确显示
