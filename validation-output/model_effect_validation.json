@@ -1,0 +1,377 @@
+{
+  "schema_version": "v475-real-oos-validation-v1",
+  "dataset": {
+    "league": "EPL",
+    "seasons": [
+      "2019-20",
+      "2020-21",
+      "2021-22",
+      "2022-23",
+      "2023-24",
+      "2024-25",
+      "2025-26"
+    ],
+    "rows": 2660,
+    "oos_seasons": [
+      "2022-23",
+      "2023-24",
+      "2024-25",
+      "2025-26"
+    ],
+    "oos_rows": 1520,
+    "skipped": 0,
+    "source": "football-data.co.uk via direct public CSV"
+  },
+  "protocol": {
+    "split": "strict expanding-window by season",
+    "temperature_range": [
+      0.5,
+      2.0
+    ],
+    "temperature_step": 0.01,
+    "ai_layer": "not evaluated; no timestamped historical AI facts",
+    "odds": "Avg opening and Avg closing 1X2"
+  },
+  "overall_oos": {
+    "market_open": {
+      "samples": 1520,
+      "nll": 0.9652139796338528,
+      "brier": 0.5739288492526113,
+      "ece": 0.02358431903207908,
+      "top1": 0.5467105263157894
+    },
+    "base_model": {
+      "samples": 1520,
+      "nll": 0.9675389516442633,
+      "brier": 0.5757332375132429,
+      "ece": 0.04295368181719309,
+      "top1": 0.5467105263157894
+    },
+    "calibrated": {
+      "samples": 1520,
+      "nll": 0.9676739256129655,
+      "brier": 0.5756552438707525,
+      "ece": 0.03388985051649863,
+      "top1": 0.5460526315789473
+    },
+    "market_close": {
+      "samples": 1520,
+      "nll": 0.9603101954633904,
+      "brier": 0.5702153852641654,
+      "ece": 0.02221762929454985,
+      "top1": 0.5513157894736842
+    }
+  },
+  "deltas": {
+    "base_model": {
+      "nll_vs_open": 0.0023249720104104865,
+      "brier_vs_open": 0.001804388260631562,
+      "ece_vs_open": 0.019369362785114013
+    },
+    "calibrated": {
+      "nll_vs_open": 0.0024599459791126987,
+      "brier_vs_open": 0.0017263946181411693,
+      "ece_vs_open": 0.01030553148441955
+    },
+    "market_close": {
+      "nll_vs_open": -0.004903784170462444,
+      "brier_vs_open": -0.003713463988445964,
+      "ece_vs_open": -0.0013666897375292295
+    }
+  },
+  "bootstrap_nll_delta_vs_open": {
+    "base_model": {
+      "mean": 0.0023249720104103503,
+      "ci95": [
+        -0.0023870398150488185,
+        0.007290479438844338
+      ]
+    },
+    "calibrated": {
+      "mean": 0.002459945979112668,
+      "ci95": [
+        -0.0011284783978524145,
+        0.006127712712360604
+      ]
+    },
+    "market_close": {
+      "mean": -0.004903784170462418,
+      "ci95": [
+        -0.008033387993190005,
+        -0.0019493791541901036
+      ]
+    }
+  },
+  "roi_flat_stake_on_opening_odds": {
+    "market_open": {
+      "0.0": {
+        "bets": 0,
+        "roi": null,
+        "profit_units": 0,
+        "mean_estimated_edge": null
+      },
+      "0.02": {
+        "bets": 0,
+        "roi": null,
+        "profit_units": 0,
+        "mean_estimated_edge": null
+      },
+      "0.05": {
+        "bets": 0,
+        "roi": null,
+        "profit_units": 0,
+        "mean_estimated_edge": null
+      },
+      "0.08": {
+        "bets": 0,
+        "roi": null,
+        "profit_units": 0,
+        "mean_estimated_edge": null
+      },
+      "0.1": {
+        "bets": 0,
+        "roi": null,
+        "profit_units": 0,
+        "mean_estimated_edge": null
+      }
+    },
+    "base_model": {
+      "0.0": {
+        "bets": 1261,
+        "roi": -0.031189532117367167,
+        "profit_units": -39.33,
+        "mean_estimated_edge": 0.03630432404557011
+      },
+      "0.02": {
+        "bets": 765,
+        "roi": -0.04415686274509805,
+        "profit_units": -33.78000000000001,
+        "mean_estimated_edge": 0.05344229531513235
+      },
+      "0.05": {
+        "bets": 209,
+        "roi": -0.16607655502392346,
+        "profit_units": -34.71,
+        "mean_estimated_edge": 0.10894573292888993
+      },
+      "0.08": {
+        "bets": 77,
+        "roi": -0.24389610389610392,
+        "profit_units": -18.78,
+        "mean_estimated_edge": 0.19109343735630635
+      },
+      "0.1": {
+        "bets": 54,
+        "roi": -0.755,
+        "profit_units": -40.77,
+        "mean_estimated_edge": 0.23489442651920153
+      }
+    },
+    "calibrated": {
+      "0.0": {
+        "bets": 1075,
+        "roi": -0.024846511627906978,
+        "profit_units": -26.71,
+        "mean_estimated_edge": 0.04091060564762517
+      },
+      "0.02": {
+        "bets": 547,
+        "roi": -0.06085923217550275,
+        "profit_units": -33.290000000000006,
+        "mean_estimated_edge": 0.07137725131601116
+      },
+      "0.05": {
+        "bets": 150,
+        "roi": -0.1898,
+        "profit_units": -28.47,
+        "mean_estimated_edge": 0.1763212647329201
+      },
+      "0.08": {
+        "bets": 92,
+        "roi": -0.17576086956521741,
+        "profit_units": -16.17,
+        "mean_estimated_edge": 0.24935350917124283
+      },
+      "0.1": {
+        "bets": 84,
+        "roi": -0.3227380952380952,
+        "profit_units": -27.109999999999996,
+        "mean_estimated_edge": 0.2646250393305551
+      }
+    }
+  },
+  "folds": [
+    {
+      "test_season": "2022-23",
+      "train_seasons": [
+        "2019-20",
+        "2020-21",
+        "2021-22"
+      ],
+      "temperature": 1.32,
+      "metrics": {
+        "market_open": {
+          "samples": 380,
+          "nll": 0.9658011480552077,
+          "brier": 0.5736740356570778,
+          "ece": 0.06951929084359285,
+          "top1": 0.5605263157894737
+        },
+        "base_model": {
+          "samples": 380,
+          "nll": 0.9693822749704017,
+          "brier": 0.5751487763140007,
+          "ece": 0.04442886496379185,
+          "top1": 0.5605263157894737
+        },
+        "calibrated": {
+          "samples": 380,
+          "nll": 0.9670274759394268,
+          "brier": 0.5742061012993728,
+          "ece": 0.02026011468891925,
+          "top1": 0.5605263157894737
+        },
+        "market_close": {
+          "samples": 380,
+          "nll": 0.9620391828743414,
+          "brier": 0.5711909443614072,
+          "ece": 0.041858462723072684,
+          "top1": 0.5552631578947368
+        }
+      }
+    },
+    {
+      "test_season": "2023-24",
+      "train_seasons": [
+        "2019-20",
+        "2020-21",
+        "2021-22",
+        "2022-23"
+      ],
+      "temperature": 1.3,
+      "metrics": {
+        "market_open": {
+          "samples": 380,
+          "nll": 0.9092502625018826,
+          "brier": 0.5331180210631138,
+          "ece": 0.05682959046655235,
+          "top1": 0.5894736842105263
+        },
+        "base_model": {
+          "samples": 380,
+          "nll": 0.9072132277902123,
+          "brier": 0.5315960768175093,
+          "ece": 0.04957400734924818,
+          "top1": 0.5894736842105263
+        },
+        "calibrated": {
+          "samples": 380,
+          "nll": 0.910683427405581,
+          "brier": 0.5338091136256738,
+          "ece": 0.07729991361019499,
+          "top1": 0.5868421052631579
+        },
+        "market_close": {
+          "samples": 380,
+          "nll": 0.9007013128279795,
+          "brier": 0.5267458308911198,
+          "ece": 0.05952577580414225,
+          "top1": 0.6
+        }
+      }
+    },
+    {
+      "test_season": "2024-25",
+      "train_seasons": [
+        "2019-20",
+        "2020-21",
+        "2021-22",
+        "2022-23",
+        "2023-24"
+      ],
+      "temperature": 1.24,
+      "metrics": {
+        "market_open": {
+          "samples": 380,
+          "nll": 0.9705521250110707,
+          "brier": 0.5788986039373658,
+          "ece": 0.03849017085875557,
+          "top1": 0.5421052631578948
+        },
+        "base_model": {
+          "samples": 380,
+          "nll": 0.9744564030270921,
+          "brier": 0.5821677326875063,
+          "ece": 0.050188796271930326,
+          "top1": 0.5421052631578948
+        },
+        "calibrated": {
+          "samples": 380,
+          "nll": 0.9736874962490819,
+          "brier": 0.5811747205335865,
+          "ece": 0.04460904188709689,
+          "top1": 0.5421052631578948
+        },
+        "market_close": {
+          "samples": 380,
+          "nll": 0.9667334134817074,
+          "brier": 0.5751877511794847,
+          "ece": 0.02913957002760478,
+          "top1": 0.5552631578947368
+        }
+      }
+    },
+    {
+      "test_season": "2025-26",
+      "train_seasons": [
+        "2019-20",
+        "2020-21",
+        "2021-22",
+        "2022-23",
+        "2023-24",
+        "2024-25"
+      ],
+      "temperature": 1.22,
+      "metrics": {
+        "market_open": {
+          "samples": 380,
+          "nll": 1.0152523829672504,
+          "brier": 0.610024736352888,
+          "ece": 0.053803584363306636,
+          "top1": 0.49473684210526314
+        },
+        "base_model": {
+          "samples": 380,
+          "nll": 1.0191039007893468,
+          "brier": 0.6140203642339552,
+          "ece": 0.07714068308923053,
+          "top1": 0.49473684210526314
+        },
+        "calibrated": {
+          "samples": 380,
+          "nll": 1.0192973028577725,
+          "brier": 0.6134310400243769,
+          "ece": 0.06911738909343586,
+          "top1": 0.49473684210526314
+        },
+        "market_close": {
+          "samples": 380,
+          "nll": 1.0117668726695337,
+          "brier": 0.6077370146246498,
+          "ece": 0.034030125843524474,
+          "top1": 0.49473684210526314
+        }
+      }
+    }
+  ],
+  "decision": {
+    "status": "NOT_VALIDATED_FOR_REAL_MONEY",
+    "failed_gates": [
+      "BASE_NLL_NOT_BETTER_THAN_OPEN_MARKET",
+      "CALIBRATED_NLL_NOT_BETTER_THAN_OPEN_MARKET",
+      "CALIBRATED_NLL_CI_INCLUDES_NO_IMPROVEMENT",
+      "CALIBRATED_5PCT_EDGE_ROI_GATE_FAIL"
+    ],
+    "automatic_betting": false
+  }
+}
