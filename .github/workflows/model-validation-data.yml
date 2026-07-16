@@ -1,0 +1,39 @@
+name: Model Validation Data
+
+on:
+  push:
+    branches: [model-validation-data]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  fetch-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Fetch public Football-Data EPL CSVs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p validation-data
+          for code in 1920 2021 2122 2223 2324 2425 2526; do
+            url="https://www.football-data.co.uk/mmz4281/${code}/E0.csv"
+            echo "Fetching ${url}"
+            curl --fail --location --retry 4 --retry-delay 3 \
+              -A "Mozilla/5.0 (compatible; model-validation/1.0)" \
+              "$url" -o "validation-data/E0_${code}.csv"
+            test -s "validation-data/E0_${code}.csv"
+          done
+          sha256sum validation-data/*.csv > validation-data/SHA256SUMS
+      - name: Upload validation dataset
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-validation-epl-data
+          path: validation-data/
+          if-no-files-found: error
+          retention-days: 7
