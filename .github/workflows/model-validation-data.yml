@@ -3,6 +3,8 @@ name: Model Validation Data
 on:
   push:
     branches: [model-validation-data]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
