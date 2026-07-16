@@ -1,28 +1,34 @@
-name: Model Validation Data
+name: Model Effect Validation
 
 on:
   push:
     branches: [model-validation-data]
-  pull_request:
-    branches: [main]
+    paths-ignore:
+      - 'validation-output/**'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   PYTHONUNBUFFERED: "1"
 
 jobs:
-  fetch-data:
+  validate-model:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
+      - name: Checkout validation branch
+        uses: actions/checkout@v4
+        with:
+          ref: model-validation-data
+
       - name: Fetch public Football-Data EPL CSVs
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p validation-data
+          rm -rf validation-data validation-output
+          mkdir -p validation-data validation-output
           for code in 1920 2021 2122 2223 2324 2425 2526; do
             url="https://www.football-data.co.uk/mmz4281/${code}/E0.csv"
             echo "Fetching ${url}"
@@ -31,11 +37,31 @@ jobs:
               "$url" -o "validation-data/E0_${code}.csv"
             test -s "validation-data/E0_${code}.csv"
           done
-          sha256sum validation-data/*.csv > validation-data/SHA256SUMS
-      - name: Upload validation dataset
+          sha256sum validation-data/*.csv > validation-output/DATA_SHA256SUMS
+
+      - name: Run strict expanding-window validation
+        run: python validation/model_validation.py
+
+      - name: Commit validation report
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add validation-output/model_effect_validation.json validation-output/DATA_SHA256SUMS
+          if git diff --cached --quiet; then
+            echo "Validation output unchanged"
+          else
+            git commit -m "Add real EPL out-of-sample model validation report"
+            git push origin HEAD:model-validation-data
+          fi
+
+      - name: Upload validation evidence
         uses: actions/upload-artifact@v4
         with:
-          name: model-validation-epl-data
-          path: validation-data/
+          name: model-effect-validation
+          path: |
+            validation-output/
+            validation-data/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
