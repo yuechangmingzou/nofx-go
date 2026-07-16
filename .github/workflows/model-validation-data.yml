@@ -44,8 +44,20 @@ jobs:
       - name: Run strict expanding-window validation
         run: python validation/model_validation.py
 
-      - name: Commit validation report
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-effect-validation-${{ github.run_id }}
+          path: |
+            validation-output/
+            validation-data/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Commit validation report on push runs
+        if: github.event_name == 'push'
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -58,13 +70,3 @@ jobs:
             git commit -m "Add real EPL out-of-sample model validation report"
             git push origin HEAD:model-validation-data
           fi
-
-      - name: Upload validation evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: model-effect-validation
-          path: |
-            validation-output/
-            validation-data/
-          if-no-files-found: error
-          retention-days: 14
