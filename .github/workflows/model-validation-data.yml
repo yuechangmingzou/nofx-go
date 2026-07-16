@@ -5,6 +5,8 @@ on:
     branches: [model-validation-data]
     paths-ignore:
       - 'validation-output/**'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -43,6 +45,7 @@ jobs:
         run: python validation/model_validation.py
 
       - name: Commit validation report
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
         run: |
           set -euo pipefail
